@@ -1,0 +1,7 @@
+node_modules/
+dist/
+
+# Ignore local environment files containing secrets
+.env
+.env.*
+!.env.example
