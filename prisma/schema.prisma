@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Users & Role Profiles
+// -----------------------------------------------------------------------------
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String
+  role           Role           @default(CANDIDATE)
+  
+  profile        Profile?
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  
+  applications   Application[]
+  resumes        Resume[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+enum Role {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  firstName String
+  lastName  String
+  headline  String?
+  bio       String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// Organizations
+// -----------------------------------------------------------------------------
+model Organization {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  website     String?
+  
+  users       User[]
+  jobs        JobPosting[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// Job Postings
+// -----------------------------------------------------------------------------
+model JobPosting {
+  id             String        @id @default(uuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  title          String
+  description    String
+  requirements   String
+  isActive       Boolean       @default(true)
+  
+  applications   Application[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// Resumes & Versions
+// -----------------------------------------------------------------------------
+model Resume {
+  id          String          @id @default(uuid())
+  candidateId String
+  candidate   User            @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  versions    ResumeVersion[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model ResumeVersion {
+  id         String   @id @default(uuid())
+  resumeId   String
+  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  
+  fileUrl    String
+  parsedData Json?
+  
+  createdAt  DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// Applications & Match Results
+// -----------------------------------------------------------------------------
+model Application {
+  id          String        @id @default(uuid())
+  jobId       String
+  job         JobPosting    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  candidateId String
+  candidate   User          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  status      AppStatus     @default(PENDING)
+  
+  matchResult MatchResult?
+  interviews  Interview[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  @@unique([jobId, candidateId])
+}
+
+enum AppStatus {
+  PENDING
+  REVIEWING
+  INTERVIEWING
+  REJECTED
+  HIRED
+}
+
+model MatchResult {
+  id            String      @id @default(uuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  score         Float
+  feedback      String?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// Interviews
+// -----------------------------------------------------------------------------
+model Interview {
+  id            String      @id @default(uuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  scheduledAt   DateTime
+  status        IntStatus   @default(SCHEDULED)
+  notes         String?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum IntStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELED
+}
