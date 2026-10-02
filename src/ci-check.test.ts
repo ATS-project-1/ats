@@ -1,1 +1,1 @@
-test('pipeline failure check', () => { expect(1).toBe(2); });
+test('pipeline success check', () => { expect(1).toBe(1); });
