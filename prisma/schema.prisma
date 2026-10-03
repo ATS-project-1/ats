@@ -15,6 +15,7 @@ model User {
   email          String         @unique
   passwordHash   String
   role           Role           @default(CANDIDATE)
+  status         AccountStatus  @default(PENDING_VERIFICATION)
   
   profile        Profile?
   organizationId String?
@@ -31,6 +32,12 @@ enum Role {
   CANDIDATE
   RECRUITER
   ADMIN
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
 }
 
 model Profile {

@@ -6,6 +6,7 @@ export type SafeUser = {
   id: string;
   email: string;
   role: string;
+  status: string;
   organizationId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -15,6 +16,7 @@ const safeUserSelect = {
   id: true,
   email: true,
   role: true,
+  status: true,
   organizationId: true,
   createdAt: true,
   updatedAt: true,
@@ -67,6 +69,21 @@ export const userRepository = {
   async create(data: Prisma.UserCreateInput) {
     return prisma.user.create({
       data,
+      select: safeUserSelect,
+    });
+  },
+
+  async createUserWithProfile(
+    userData: Pick<Prisma.UserCreateInput, 'email' | 'passwordHash' | 'role'>,
+    profileData: Pick<Prisma.ProfileCreateWithoutUserInput, 'firstName' | 'lastName'>,
+  ) {
+    return prisma.user.create({
+      data: {
+        ...userData,
+        profile: {
+          create: profileData,
+        },
+      },
       select: safeUserSelect,
     });
   },

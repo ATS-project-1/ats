@@ -1,7 +1,28 @@
 import { userRepository } from './user.repository';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 export const userService = {
+  async register(
+    email: string,
+    password: string,
+    role: Role,
+    fullName: string,
+  ) {
+    const existingUser = await userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new Error('Email_In_Use');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [firstName = '', ...lastNameParts] = fullName.trim().split(/\s+/);
+
+    return userRepository.createUserWithProfile(
+      { email, passwordHash, role },
+      { firstName, lastName: lastNameParts.join(' ') },
+    );
+  },
+
   async getUserById(id: string) {
     return userRepository.findById(id);
   },
