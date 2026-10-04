@@ -10,7 +10,7 @@ dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 dotenv.config(); // Fallback to standard .env for shared values
 
 const envSchema = z.object({
-  PORT: z.string().transform((val) => parseInt(val, 10)).default('4000'),
+  PORT: z.string().transform(Number).default(3000),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url({ message: 'DATABASE_URL must be a valid connection string' }),
 });
