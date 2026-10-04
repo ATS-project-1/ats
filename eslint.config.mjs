@@ -15,7 +15,7 @@ export default [
       '@typescript-eslint': typescriptEslint,
     },
     rules: {
-      // Add custom ESLint rules here if needed
+      // Add custom lint rules here if needed
     },
   },
 ];
