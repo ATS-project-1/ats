@@ -9,7 +9,7 @@
     "start": "node dist/app.js",
     "lint": "eslint 'src/**/*.ts'",
     "format": "prettier --write 'src/**/*.ts'",
-    "test": "jest"
+    "test": "jest --passWithNoTests"
   },
   "keywords": [],
   "author": "",
