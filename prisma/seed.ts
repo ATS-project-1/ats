@@ -1,9 +1,12 @@
 import { PrismaClient, Role } from '@prisma/client';
 
+import bcrypt from 'bcrypt';
+
 const prisma = new PrismaClient();
-const passwordHash = 'development-seed-password-hash';
 
 async function main() {
+  const passwordHash = await bcrypt.hash('password123', 10);
+
   const organization = await prisma.organization.create({
     data: {
       name: 'Tech Corp',

@@ -9,6 +9,8 @@ interface AppConfig {
   DB_USER: string;
   DB_PASSWORD: string;
   DB_NAME: string;
+  JWT_SECRET: string;
+  JWT_EXPIRES_IN: string;
 }
 
 function getRequiredEnv(key: string): string {
@@ -27,6 +29,8 @@ const config: AppConfig = {
   DB_USER: getRequiredEnv('DB_USER'),
   DB_PASSWORD: getRequiredEnv('DB_PASSWORD'),
   DB_NAME: getRequiredEnv('DB_NAME'),
+  JWT_SECRET: getRequiredEnv('JWT_SECRET'),
+  JWT_EXPIRES_IN: getRequiredEnv('JWT_EXPIRES_IN'),
 };
 
 export default config;
