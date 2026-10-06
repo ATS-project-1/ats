@@ -43,6 +43,22 @@ export const jobRepository = {
     });
   },
 
+  async createJob(
+    organizationId: string,
+    jobData: Pick<
+      Prisma.JobPostingCreateInput,
+      'title' | 'description' | 'requirements' | 'isActive'
+    >,
+  ) {
+    return prisma.jobPosting.create({
+      data: {
+        ...jobData,
+        organization: { connect: { id: organizationId } },
+      },
+      select: jobPostingSelect,
+    });
+  },
+
   async update(id: string, data: Prisma.JobPostingUpdateInput) {
     return prisma.jobPosting.update({
       where: { id },
