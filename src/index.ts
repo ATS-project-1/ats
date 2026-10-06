@@ -1,11 +1,13 @@
 import config from './config';
 import express, { Request, Response } from 'express';
+import profileRoutes from './user/profile.routes';
 import userRoutes from './user/user.routes';
 
 const app = express();
 
 app.use(express.json());
 app.use('/', userRoutes);
+app.use('/profile', profileRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is configured and running!');
