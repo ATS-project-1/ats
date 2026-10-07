@@ -1,0 +1,62 @@
+{
+  "name": "ats-backend",
+  "version": "1.0.0",
+  "description": "An applicant tracking system and resume builder",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "dev": "cross-env NODE_ENV=development ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:up": "docker compose up -d postgres",
+    "db:migrate": "dotenv -e .env.development -- prisma migrate dev",
+    "db:studio": "dotenv -e .env.development -- prisma studio",
+    "db:reset": "dotenv -e .env.development -- prisma migrate reset",
+    "db:status": "dotenv -e .env.development -- prisma migrate status",
+    "db:validate": "dotenv -e .env.development -- prisma validate",
+    "db:smoke": "ts-node-dev --transpile-only src/scripts/db-smoke.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:db:prepare": "dotenv -e .env.test -- prisma migrate deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ATS-project-1/ats.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ATS-project-1/ats/issues"
+  },
+  "homepage": "https://github.com/ATS-project-1/ats#readme",
+  "private": true,
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "@types/supertest": "^7.2.1",
+    "cross-env": "^10.1.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.9",
+    "prisma": "^6.19.3",
+    "supertest": "^7.3.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
