@@ -40,7 +40,9 @@ export interface CreateJobPostingInput {
   closedAt?: Date | null;
 }
 
-export type UpdateJobPostingInput = Partial<Omit<CreateJobPostingInput, 'organizationId'>>;
+export type UpdateJobPostingInput = Partial<
+  Omit<CreateJobPostingInput, 'organizationId' | 'createdById'>
+>;
 
 export interface JobPostingFilters {
   status?: JobPostingStatus;
