@@ -1,4 +1,6 @@
+import bcrypt from 'bcrypt';
 import { prisma } from '../common/db';
+import { config } from '../config';
 import { jobPostingRepository } from '../job/job-posting.repository';
 import { resumeRepository } from '../resume/resume.repository';
 import { resumeVersionRepository } from '../resume/resume-version.repository';
@@ -7,20 +9,18 @@ import { organizationRepository } from '../user/organization.repository';
 import { recruiterProfileRepository } from '../user/recruiter-profile.repository';
 import { userRepository } from '../user/user.repository';
 
-// Development seed data. Idempotent: running it again leaves existing rows alone.
-// Real password hashing arrives with the auth tickets, so these accounts cannot log in yet.
-const PLACEHOLDER_PASSWORD_HASH = 'seed-placeholder-hash';
+// Development seed data. Idempotent: each part is skipped if it already exists.
+// Each organization has exactly one admin (the first recruiter); other recruiters are members.
+// Development-only password shared by all seeded accounts.
+const SEED_PASSWORD = 'Password123!';
 const ORG_NAME = 'Tech Corp';
 const RECRUITER_EMAIL = 'recruiter@tech-corp.example.com';
+const MEMBER_EMAIL = 'member@tech-corp.example.com';
 const CANDIDATE_EMAIL = 'alex.candidate@example.com';
 const JOB_TITLE = 'Senior Backend Engineer';
 
-async function main(): Promise<void> {
-  const existingRecruiter = await userRepository.findByEmail(RECRUITER_EMAIL);
-  if (existingRecruiter) {
-    console.log('Seed data already present, nothing to do.');
-    return;
-  }
+async function seedBase(passwordHash: string): Promise<boolean> {
+  if (await userRepository.findByEmail(RECRUITER_EMAIL)) return false;
 
   const organization = await organizationRepository.create({
     name: ORG_NAME,
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
 
   const recruiterUser = await userRepository.create({
     email: RECRUITER_EMAIL,
-    passwordHash: PLACEHOLDER_PASSWORD_HASH,
+    passwordHash,
     fullName: 'Taylor Recruiter',
     role: 'RECRUITER',
   });
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
 
   const candidateUser = await userRepository.create({
     email: CANDIDATE_EMAIL,
-    passwordHash: PLACEHOLDER_PASSWORD_HASH,
+    passwordHash,
     fullName: 'Alex Candidate',
     role: 'CANDIDATE',
   });
@@ -71,7 +71,48 @@ async function main(): Promise<void> {
   });
   await resumeVersionRepository.createSnapshot(resume.id);
 
-  console.log('Seeded: 1 organization, 2 users, 1 job posting, 1 resume with 1 version.');
+  return true;
+}
+
+/** A non-admin recruiter who belongs to the seeded organization. */
+async function seedMember(passwordHash: string): Promise<boolean> {
+  if (await userRepository.findByEmail(MEMBER_EMAIL)) return false;
+
+  const admin = await userRepository.findByEmail(RECRUITER_EMAIL);
+  const adminProfile = admin && (await recruiterProfileRepository.findByUserId(admin.id));
+  if (!adminProfile?.organization) {
+    throw new Error('Seeded admin recruiter has no organization; cannot add a member');
+  }
+
+  const user = await userRepository.create({
+    email: MEMBER_EMAIL,
+    passwordHash,
+    fullName: 'Morgan Member',
+    role: 'RECRUITER',
+  });
+  const profile = await recruiterProfileRepository.create(user.id, { jobTitle: 'Recruiter' });
+  await recruiterProfileRepository.assignToOrganizationIfUnassigned(
+    profile.id,
+    adminProfile.organization.id,
+    false,
+  );
+  return true;
+}
+
+async function main(): Promise<void> {
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, config.bcryptRounds);
+  const base = await seedBase(passwordHash);
+  const member = await seedMember(passwordHash);
+
+  if (!base && !member) {
+    console.log('Seed data already present, nothing to do.');
+    return;
+  }
+  const parts = [
+    base && 'organization (1 admin), candidate, job posting, resume',
+    member && 'non-admin member recruiter',
+  ].filter(Boolean);
+  console.log(`Seeded: ${parts.join('; ')}.`);
 }
 
 main()

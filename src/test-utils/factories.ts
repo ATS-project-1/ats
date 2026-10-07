@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { Role } from '../common/enums';
+import { signAccessToken } from '../user/auth/token';
 import { jobPostingRepository } from '../job/job-posting.repository';
 import { resumeRepository } from '../resume/resume.repository';
 import { resumeVersionRepository } from '../resume/resume-version.repository';
@@ -25,6 +27,28 @@ export async function createCandidate() {
   });
   const profile = await candidateProfileRepository.create(user.id, { headline: 'Test candidate' });
   return { user, profile };
+}
+
+/** A user with no role profile, to exercise create-on-first-access. */
+export function createUser(role: Role) {
+  const suffix = uniqueSuffix();
+  return userRepository.create({
+    email: `${role.toLowerCase()}-${suffix}${TEST_EMAIL_DOMAIN}`,
+    passwordHash: PLACEHOLDER_PASSWORD_HASH,
+    fullName: `Test ${role} ${suffix}`,
+    role,
+  });
+}
+
+export async function createAdmin() {
+  const suffix = uniqueSuffix();
+  const created = await userRepository.create({
+    email: `admin-${suffix}${TEST_EMAIL_DOMAIN}`,
+    passwordHash: PLACEHOLDER_PASSWORD_HASH,
+    fullName: `Test Admin ${suffix}`,
+    role: 'ADMIN',
+  });
+  return userRepository.updateStatus(created.id, 'ACTIVE');
 }
 
 export async function createRecruiterWithOrg() {
@@ -74,4 +98,9 @@ export async function createResumeWithVersion(candidateId: string) {
   });
   const version = await resumeVersionRepository.createSnapshot(resume.id);
   return { resume, version };
+}
+
+/** Authorization header for a user, without going through the login endpoint. */
+export function authHeader(user: { id: string; role: Role }): { Authorization: string } {
+  return { Authorization: `Bearer ${signAccessToken(user)}` };
 }
