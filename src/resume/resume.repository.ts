@@ -1,74 +1,69 @@
-import prisma from '../common/prisma';
-import { Prisma } from '@prisma/client';
-
-const resumeVersionSelect = {
-  id: true,
-  resumeId: true,
-  fileUrl: true,
-  parsedData: true,
-  createdAt: true,
-} satisfies Prisma.ResumeVersionSelect;
+import type { Prisma } from '@prisma/client';
+import { prisma, type DbClient } from '../common/db';
+import type { ResumeSource } from '../common/enums';
+import { isUuid } from '../common/ids';
+import { withMappedErrors } from '../common/prisma-errors';
 
 const resumeSelect = {
   id: true,
   candidateId: true,
+  title: true,
+  source: true,
+  content: true,
+  templateId: true,
   createdAt: true,
   updatedAt: true,
-  versions: {
-    select: resumeVersionSelect,
-    orderBy: { createdAt: 'desc' as const },
-  },
 } satisfies Prisma.ResumeSelect;
 
+// Lists omit the (potentially large) content.
+const resumeSummarySelect = {
+  id: true,
+  candidateId: true,
+  title: true,
+  source: true,
+  templateId: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ResumeSelect;
+
+export type ResumeRecord = Prisma.ResumeGetPayload<{ select: typeof resumeSelect }>;
+export type ResumeSummaryRecord = Prisma.ResumeGetPayload<{ select: typeof resumeSummarySelect }>;
+
+export interface CreateResumeInput {
+  candidateId: string;
+  title: string;
+  source?: ResumeSource;
+  content: Prisma.InputJsonValue;
+  templateId?: string | null;
+}
+
+export interface UpdateResumeInput {
+  title?: string;
+  content?: Prisma.InputJsonValue;
+  templateId?: string | null;
+}
+
 export const resumeRepository = {
-  async findById(id: string) {
-    return prisma.resume.findUnique({
-      where: { id },
-      select: resumeSelect,
-    });
+  create(input: CreateResumeInput, db: DbClient = prisma): Promise<ResumeRecord> {
+    return withMappedErrors(() => db.resume.create({ data: input, select: resumeSelect }));
   },
 
-  async findByCandidate(candidateId: string) {
-    return prisma.resume.findMany({
-      where: { candidateId },
-      select: resumeSelect,
-      orderBy: { updatedAt: 'desc' },
-    });
+  async findById(id: string, db: DbClient = prisma): Promise<ResumeRecord | null> {
+    if (!isUuid(id)) return null;
+    return withMappedErrors(() => db.resume.findUnique({ where: { id }, select: resumeSelect }));
   },
 
-  async create(data: Prisma.ResumeCreateInput) {
-    return prisma.resume.create({
-      data,
-      select: resumeSelect,
-    });
+  listByCandidate(candidateId: string, db: DbClient = prisma): Promise<ResumeSummaryRecord[]> {
+    return withMappedErrors(() =>
+      db.resume.findMany({
+        where: { candidateId },
+        select: resumeSummarySelect,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
   },
 
-  async update(id: string, data: Prisma.ResumeUpdateInput) {
-    return prisma.resume.update({
-      where: { id },
-      data,
-      select: resumeSelect,
-    });
-  },
-
-  async delete(id: string) {
-    return prisma.resume.delete({
-      where: { id },
-      select: { id: true, candidateId: true },
-    });
-  },
-
-  async addVersion(data: Prisma.ResumeVersionCreateInput) {
-    return prisma.resumeVersion.create({
-      data,
-      select: resumeVersionSelect,
-    });
-  },
-
-  async findVersionById(id: string) {
-    return prisma.resumeVersion.findUnique({
-      where: { id },
-      select: resumeVersionSelect,
-    });
+  updateContent(id: string, data: UpdateResumeInput, db: DbClient = prisma): Promise<ResumeRecord> {
+    return withMappedErrors(() => db.resume.update({ where: { id }, data, select: resumeSelect }));
   },
 };

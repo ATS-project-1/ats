@@ -1,105 +1,64 @@
-import prisma from '../common/prisma';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import { prisma, type DbClient } from '../common/db';
+import type { Role, UserStatus } from '../common/enums';
+import { isUuid } from '../common/ids';
+import { withMappedErrors } from '../common/prisma-errors';
 
-// Safe user shape — passwordHash is never included in read queries
-export type SafeUser = {
-  id: string;
-  email: string;
-  role: string;
-  status: string;
-  organizationId: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-const safeUserSelect = {
+const userSelect = {
   id: true,
   email: true,
+  fullName: true,
   role: true,
   status: true,
-  organizationId: true,
   createdAt: true,
   updatedAt: true,
-  profile: {
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      headline: true,
-      bio: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  },
 } satisfies Prisma.UserSelect;
 
+const userAuthSelect = { ...userSelect, passwordHash: true } satisfies Prisma.UserSelect;
+
+export type UserRecord = Prisma.UserGetPayload<{ select: typeof userSelect }>;
+export type UserAuthRecord = Prisma.UserGetPayload<{ select: typeof userAuthSelect }>;
+
+export interface CreateUserInput {
+  email: string;
+  passwordHash: string;
+  fullName: string;
+  role: Role;
+}
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
 export const userRepository = {
-  /** Read queries — passwordHash always excluded */
-  async findById(id: string) {
-    return prisma.user.findUnique({
-      where: { id },
-      select: safeUserSelect,
-    });
+  create(input: CreateUserInput, db: DbClient = prisma): Promise<UserRecord> {
+    return withMappedErrors(() =>
+      db.user.create({
+        data: { ...input, email: normalizeEmail(input.email) },
+        select: userSelect,
+      }),
+    );
   },
 
-  async findByEmail(email: string) {
-    return prisma.user.findUnique({
-      where: { email },
-      select: safeUserSelect,
-    });
+  async findById(id: string, db: DbClient = prisma): Promise<UserRecord | null> {
+    if (!isUuid(id)) return null;
+    return withMappedErrors(() => db.user.findUnique({ where: { id }, select: userSelect }));
   },
 
-  /** Used only for authentication — returns full record including passwordHash */
-  async findByEmailWithPassword(email: string) {
-    return prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        passwordHash: true,
-        role: true,
-      },
-    });
+  findByEmail(email: string, db: DbClient = prisma): Promise<UserRecord | null> {
+    return withMappedErrors(() =>
+      db.user.findUnique({ where: { email: normalizeEmail(email) }, select: userSelect }),
+    );
   },
 
-  async findAll() {
-    return prisma.user.findMany({ select: safeUserSelect });
+  /** The only function that returns passwordHash. */
+  findByEmailForAuth(email: string, db: DbClient = prisma): Promise<UserAuthRecord | null> {
+    return withMappedErrors(() =>
+      db.user.findUnique({ where: { email: normalizeEmail(email) }, select: userAuthSelect }),
+    );
   },
 
-  async create(data: Prisma.UserCreateInput) {
-    return prisma.user.create({
-      data,
-      select: safeUserSelect,
-    });
-  },
-
-  async createUserWithProfile(
-    userData: Pick<Prisma.UserCreateInput, 'email' | 'passwordHash' | 'role'>,
-    profileData: Pick<Prisma.ProfileCreateWithoutUserInput, 'firstName' | 'lastName'>,
-  ) {
-    return prisma.user.create({
-      data: {
-        ...userData,
-        profile: {
-          create: profileData,
-        },
-      },
-      select: safeUserSelect,
-    });
-  },
-
-  async update(id: string, data: Prisma.UserUpdateInput) {
-    return prisma.user.update({
-      where: { id },
-      data,
-      select: safeUserSelect,
-    });
-  },
-
-  async delete(id: string) {
-    return prisma.user.delete({
-      where: { id },
-      select: { id: true, email: true, role: true },
-    });
+  updateStatus(id: string, status: UserStatus, db: DbClient = prisma): Promise<UserRecord> {
+    return withMappedErrors(() =>
+      db.user.update({ where: { id }, data: { status }, select: userSelect }),
+    );
   },
 };

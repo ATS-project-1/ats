@@ -7,26 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// -----------------------------------------------------------------------------
-// Users & Role Profiles
-// -----------------------------------------------------------------------------
-model User {
-  id             String         @id @default(uuid())
-  email          String         @unique
-  passwordHash   String
-  role           Role           @default(CANDIDATE)
-  status         AccountStatus  @default(PENDING_VERIFICATION)
-  
-  profile        Profile?
-  organizationId String?
-  organization   Organization?  @relation(fields: [organizationId], references: [id])
-  
-  applications   Application[]
-  resumes        Resume[]
-
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-}
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
 
 enum Role {
   CANDIDATE
@@ -34,146 +17,291 @@ enum Role {
   ADMIN
 }
 
-enum AccountStatus {
+enum UserStatus {
   PENDING_VERIFICATION
   ACTIVE
   SUSPENDED
 }
 
-model Profile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  firstName String
-  lastName  String
-  headline  String?
-  bio       String?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum JobPostingStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
 }
 
-// -----------------------------------------------------------------------------
-// Organizations
-// -----------------------------------------------------------------------------
-model Organization {
-  id          String       @id @default(uuid())
-  name        String
-  description String?
-  website     String?
-  
-  users       User[]
-  jobs        JobPosting[]
-
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+enum Seniority {
+  INTERN
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  PRINCIPAL
 }
 
-// -----------------------------------------------------------------------------
-// Job Postings
-// -----------------------------------------------------------------------------
-model JobPosting {
-  id             String        @id @default(uuid())
-  organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  title          String
-  description    String
-  requirements   String
-  isActive       Boolean       @default(true)
-  
-  applications   Application[]
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+enum ResumeSource {
+  BUILDER
+  UPLOAD
 }
 
-// -----------------------------------------------------------------------------
-// Resumes & Versions
-// -----------------------------------------------------------------------------
-model Resume {
-  id          String          @id @default(uuid())
-  candidateId String
-  candidate   User            @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
-  versions    ResumeVersion[]
-
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-}
-
-model ResumeVersion {
-  id         String   @id @default(uuid())
-  resumeId   String
-  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  
-  fileUrl    String
-  parsedData Json?
-  
-  createdAt  DateTime @default(now())
-}
-
-// -----------------------------------------------------------------------------
-// Applications & Match Results
-// -----------------------------------------------------------------------------
-model Application {
-  id          String        @id @default(uuid())
-  jobId       String
-  job         JobPosting    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
-  candidateId String
-  candidate   User          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
-  status      AppStatus     @default(PENDING)
-  
-  matchResult MatchResult?
-  interviews  Interview[]
-
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  @@unique([jobId, candidateId])
-}
-
-enum AppStatus {
-  PENDING
-  REVIEWING
-  INTERVIEWING
+enum ApplicationStatus {
+  SUBMITTED
+  SCREENING
+  INTERVIEW
+  OFFER
   REJECTED
-  HIRED
 }
 
-model MatchResult {
-  id            String      @id @default(uuid())
-  applicationId String      @unique
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
-  score         Float
-  feedback      String?
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-}
-
-// -----------------------------------------------------------------------------
-// Interviews
-// -----------------------------------------------------------------------------
-model Interview {
-  id            String      @id @default(uuid())
-  applicationId String
-  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
-  scheduledAt   DateTime
-  status        IntStatus   @default(SCHEDULED)
-  notes         String?
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-}
-
-enum IntStatus {
+enum InterviewStatus {
   SCHEDULED
   COMPLETED
   CANCELED
+}
+
+// ---------------------------------------------------------------------------
+// Users & role profiles
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  status       UserStatus @default(PENDING_VERIFICATION)
+
+  candidateProfile CandidateProfile?
+  recruiterProfile RecruiterProfile?
+  statusChanges    ApplicationStatusHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model CandidateProfile {
+  id       String  @id @default(uuid()) @db.Uuid
+  userId   String  @unique @db.Uuid
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline String?
+  location String?
+  phone    String?
+
+  resumes      Resume[]
+  applications Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("candidate_profiles")
+}
+
+model RecruiterProfile {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @unique @db.Uuid
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?       @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  isOrgAdmin     Boolean       @default(false)
+  jobTitle       String?
+
+  createdJobPostings JobPosting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("recruiter_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Organizations
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  website     String?
+
+  recruiters  RecruiterProfile[]
+  jobPostings JobPosting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+// ---------------------------------------------------------------------------
+// Job postings
+// ---------------------------------------------------------------------------
+
+model JobPosting {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @db.Uuid
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdById    String?           @db.Uuid
+  createdBy      RecruiterProfile? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  title           String
+  description     String
+  requiredSkills  String[]         @default([])
+  preferredSkills String[]         @default([])
+  seniority       Seniority
+  location        String
+  isRemote        Boolean          @default(false)
+  status          JobPostingStatus @default(DRAFT)
+  publishedAt     DateTime?
+  closedAt        DateTime?
+
+  applications Application[]
+  matchResults MatchResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status, seniority])
+  @@index([requiredSkills], type: Gin)
+  @@map("job_postings")
+}
+
+// ---------------------------------------------------------------------------
+// Resumes & immutable versions
+// ---------------------------------------------------------------------------
+
+model Resume {
+  id          String           @id @default(uuid()) @db.Uuid
+  candidateId String           @db.Uuid
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  title       String
+  source      ResumeSource     @default(BUILDER)
+  content     Json
+  templateId  String?
+
+  versions ResumeVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([candidateId])
+  @@map("resumes")
+}
+
+model ResumeVersion {
+  id            String  @id @default(uuid()) @db.Uuid
+  resumeId      String  @db.Uuid
+  resume        Resume  @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  content       Json
+  sourceFileKey String?
+  rawText       String?
+
+  applications Application[]
+  matchResults MatchResult[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([resumeId, versionNumber])
+  @@map("resume_versions")
+}
+
+// ---------------------------------------------------------------------------
+// Applications & status history
+// ---------------------------------------------------------------------------
+
+model Application {
+  id              String            @id @default(uuid()) @db.Uuid
+  candidateId     String            @db.Uuid
+  candidate       CandidateProfile  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobPostingId    String            @db.Uuid
+  jobPosting      JobPosting        @relation(fields: [jobPostingId], references: [id], onDelete: NoAction)
+  resumeVersionId String            @db.Uuid
+  resumeVersion   ResumeVersion     @relation(fields: [resumeVersionId], references: [id], onDelete: NoAction)
+  status          ApplicationStatus @default(SUBMITTED)
+
+  statusHistory ApplicationStatusHistory[]
+  interviews    Interview[]
+
+  submittedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([candidateId, jobPostingId])
+  @@index([jobPostingId, status])
+  @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String             @id @default(uuid()) @db.Uuid
+  applicationId String             @db.Uuid
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  changedById   String?            @db.Uuid
+  changedBy     User?              @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  note          String?
+  changedAt     DateTime           @default(now())
+
+  @@index([applicationId, changedAt])
+  @@map("application_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Matching
+// ---------------------------------------------------------------------------
+
+model MatchResult {
+  id                  String        @id @default(uuid()) @db.Uuid
+  resumeVersionId     String        @db.Uuid
+  resumeVersion       ResumeVersion @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+  jobPostingId        String        @db.Uuid
+  jobPosting          JobPosting    @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  scorer              String
+  score               Float
+  breakdown           Json
+  jobPostingUpdatedAt DateTime
+  computedAt          DateTime      @default(now())
+
+  @@unique([resumeVersionId, jobPostingId, scorer])
+  @@index([jobPostingId, score])
+  @@map("match_results")
+}
+
+// ---------------------------------------------------------------------------
+// Interviews
+// ---------------------------------------------------------------------------
+
+model Interview {
+  id            String          @id @default(uuid()) @db.Uuid
+  applicationId String          @db.Uuid
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scheduledAt   DateTime
+  status        InterviewStatus @default(SCHEDULED)
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([applicationId])
+  @@map("interviews")
+}
+
+// ---------------------------------------------------------------------------
+// Transactional outbox (used by the event-driven epic)
+// ---------------------------------------------------------------------------
+
+model OutboxEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  attempts      Int       @default(0)
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  publishedAt   DateTime?
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_events")
 }
