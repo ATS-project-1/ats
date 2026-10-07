@@ -12,8 +12,24 @@ const organizationSelect = {
   updatedAt: true,
 } satisfies Prisma.OrganizationSelect;
 
+const organizationWithMembersSelect = {
+  ...organizationSelect,
+  recruiters: {
+    select: {
+      id: true,
+      jobTitle: true,
+      isOrgAdmin: true,
+      user: { select: { id: true, fullName: true, email: true } },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  },
+} satisfies Prisma.OrganizationSelect;
+
 export type OrganizationRecord = Prisma.OrganizationGetPayload<{
   select: typeof organizationSelect;
+}>;
+export type OrganizationWithMembersRecord = Prisma.OrganizationGetPayload<{
+  select: typeof organizationWithMembersSelect;
 }>;
 
 export interface CreateOrganizationInput {
@@ -21,6 +37,8 @@ export interface CreateOrganizationInput {
   description?: string | null;
   website?: string | null;
 }
+
+export type UpdateOrganizationInput = Partial<CreateOrganizationInput>;
 
 export const organizationRepository = {
   create(input: CreateOrganizationInput, db: DbClient = prisma): Promise<OrganizationRecord> {
@@ -33,6 +51,26 @@ export const organizationRepository = {
     if (!isUuid(id)) return null;
     return withMappedErrors(() =>
       db.organization.findUnique({ where: { id }, select: organizationSelect }),
+    );
+  },
+
+  update(
+    id: string,
+    data: UpdateOrganizationInput,
+    db: DbClient = prisma,
+  ): Promise<OrganizationWithMembersRecord> {
+    return withMappedErrors(() =>
+      db.organization.update({ where: { id }, data, select: organizationWithMembersSelect }),
+    );
+  },
+
+  async findByIdWithMembers(
+    id: string,
+    db: DbClient = prisma,
+  ): Promise<OrganizationWithMembersRecord | null> {
+    if (!isUuid(id)) return null;
+    return withMappedErrors(() =>
+      db.organization.findUnique({ where: { id }, select: organizationWithMembersSelect }),
     );
   },
 };

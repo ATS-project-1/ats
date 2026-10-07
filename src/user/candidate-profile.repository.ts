@@ -5,12 +5,12 @@ import { withMappedErrors } from '../common/prisma-errors';
 
 const candidateProfileSelect = {
   id: true,
-  userId: true,
   headline: true,
   location: true,
   phone: true,
   createdAt: true,
   updatedAt: true,
+  user: { select: { id: true, email: true, fullName: true } },
 } satisfies Prisma.CandidateProfileSelect;
 
 export type CandidateProfileRecord = Prisma.CandidateProfileGetPayload<{

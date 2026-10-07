@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { durationToSeconds } from './common/duration';
 
 // Precedence (highest first): real process environment > .env.<NODE_ENV> > .env.
 // dotenv never overrides variables that are already set, so loading the more specific file
@@ -24,7 +25,16 @@ const schema = z.object({
   JWT_SECRET: z
     .string({ error: 'is required' })
     .min(32, { message: 'must be at least 32 characters' }),
-  JWT_EXPIRES_IN: z.preprocess(emptyToUndefined, z.string().default('1h')),
+  JWT_EXPIRES_IN: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .default('1h')
+      .refine((v) => durationToSeconds(v) !== undefined, {
+        message: 'must be <number><unit> with unit s, m, h or d (e.g. 15m, 1h, 7d)',
+      }),
+  ),
+  BCRYPT_ROUNDS: z.preprocess(emptyToUndefined, z.coerce.number().int().min(4).max(15).default(12)),
   LOG_LEVEL: z.preprocess(
     emptyToUndefined,
     z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
@@ -49,7 +59,14 @@ export const config = Object.freeze({
   nodeEnv: env.NODE_ENV,
   port: env.PORT,
   databaseUrl: env.DATABASE_URL,
-  jwt: Object.freeze({ secret: env.JWT_SECRET, expiresIn: env.JWT_EXPIRES_IN }),
+  jwt: Object.freeze({
+    secret: env.JWT_SECRET,
+    expiresIn: env.JWT_EXPIRES_IN,
+    expiresInSeconds: durationToSeconds(env.JWT_EXPIRES_IN) as number,
+    issuer: 'ats-backend',
+    audience: 'ats-api',
+  }),
+  bcryptRounds: env.BCRYPT_ROUNDS,
   logLevel: env.LOG_LEVEL,
   isProduction: env.NODE_ENV === 'production',
   isDevelopment: env.NODE_ENV === 'development',
