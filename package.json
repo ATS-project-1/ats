@@ -11,15 +11,16 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "db:up": "docker compose up -d postgres",
-    "db:migrate": "dotenv -e .env.development -- prisma migrate dev",
-    "db:studio": "dotenv -e .env.development -- prisma studio",
-    "db:reset": "dotenv -e .env.development -- prisma migrate reset",
-    "db:status": "dotenv -e .env.development -- prisma migrate status",
-    "db:validate": "dotenv -e .env.development -- prisma validate",
+    "db:migrate": "node node_modules/dotenv-cli/cli.js -e .env.development -- prisma migrate dev",
+    "db:studio": "node node_modules/dotenv-cli/cli.js -e .env.development -- prisma studio",
+    "db:reset": "node node_modules/dotenv-cli/cli.js -e .env.development -- prisma migrate reset",
+    "db:status": "node node_modules/dotenv-cli/cli.js -e .env.development -- prisma migrate status",
+    "db:validate": "node node_modules/dotenv-cli/cli.js -e .env.development -- prisma validate",
     "db:smoke": "ts-node-dev --transpile-only src/scripts/db-smoke.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:db:prepare": "dotenv -e .env.test -- prisma migrate deploy"
+    "test:db:prepare": "node node_modules/dotenv-cli/cli.js -e .env.test -- prisma migrate deploy",
+    "db:seed": "ts-node-dev --transpile-only src/scripts/seed.ts"
   },
   "repository": {
     "type": "git",
