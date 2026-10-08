@@ -68,9 +68,10 @@ export const jobPostingService = {
     pageParams: PageParams,
   ) {
     if (role === 'CANDIDATE') {
-      return jobPostingRepository.list(
+      return jobPostingRepository.getJobs(
         { ...filters, status: 'PUBLISHED' },
-        pageParams,
+        pageParams.page,
+        pageParams.pageSize,
       );
     }
 
@@ -81,12 +82,13 @@ export const jobPostingService = {
           'NOT_IN_ORGANIZATION',
         );
       }
-      return jobPostingRepository.list(
+      return jobPostingRepository.getJobs(
         { ...filters, organizationId },
-        pageParams,
+        pageParams.page,
+        pageParams.pageSize,
       );
     }
 
-    return jobPostingRepository.list(filters, pageParams);
+    return jobPostingRepository.getJobs(filters, pageParams.page, pageParams.pageSize);
   },
 };

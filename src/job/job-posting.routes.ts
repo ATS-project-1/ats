@@ -24,4 +24,4 @@ jobPostingRouter.patch(
   validateBody(updateJobPostingSchema),
   jobPostingController.update,
 );
-jobPostingRouter.get('/', requireAuth, jobPostingController.list);
+jobPostingRouter.get('/', requireAuth, jobPostingController.getAll);

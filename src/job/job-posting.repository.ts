@@ -76,12 +76,16 @@ export const jobPostingRepository = {
     );
   },
 
-  list(
+  getJobs(
     filters: JobPostingFilters,
-    pageParams: PageParams,
+    page: number,
+    limit: number,
     db: DbClient = prisma,
   ): Promise<Paginated<JobPostingRecord>> {
-    const { skip, take, page, pageSize } = toSkipTake(pageParams);
+    const { skip, take, page: currentPage, pageSize } = toSkipTake({
+      page,
+      pageSize: limit,
+    });
     const where: Prisma.JobPostingWhereInput = {
       AND: [
         filters.status ? { status: filters.status } : {},
@@ -104,10 +108,18 @@ export const jobPostingRepository = {
             skip,
             take,
           });
-          return { items, total, page, pageSize };
+          return { items, total, page: currentPage, pageSize };
         },
         { isolationLevel: 'RepeatableRead' },
       ),
     );
+  },
+
+  list(
+    filters: JobPostingFilters,
+    pageParams: PageParams,
+    db: DbClient = prisma,
+  ): Promise<Paginated<JobPostingRecord>> {
+    return this.getJobs(filters, pageParams.page, pageParams.pageSize, db);
   },
 };

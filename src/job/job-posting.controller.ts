@@ -33,7 +33,7 @@ export const jobPostingController = {
     res.status(200).json({ jobPosting });
   },
 
-  async list(req: Request, res: Response): Promise<void> {
+  async getAll(req: Request, res: Response): Promise<void> {
     const auth = getAuth(req);
     const query = listJobPostingsQuerySchema.parse(req.query) satisfies ListJobPostingsQuery;
     const organizationId =
@@ -46,16 +46,19 @@ export const jobPostingController = {
       location: query.location,
       skill: query.skill,
     };
+    const page = query.page ?? 1;
+    const limit = query.limit ?? query.pageSize ?? 10;
     const result = await jobPostingService.getJobPostings(auth.role, organizationId, filters, {
-      page: query.page ?? 1,
-      pageSize: query.pageSize ?? 20,
+      page,
+      pageSize: limit,
     });
     res.status(200).json({
-      jobPostings: result.items,
-      pagination: {
+      data: result.items,
+      meta: {
         total: result.total,
-        page: result.page,
-        pageSize: result.pageSize,
+        page,
+        limit,
+        totalPages: Math.ceil(result.total / limit),
       },
     });
   },

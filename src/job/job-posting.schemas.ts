@@ -30,11 +30,17 @@ export const updateJobPostingSchema = z
 
 export const listJobPostingsQuerySchema = z.strictObject({
   status: z.enum(JobPostingStatus).optional(),
-  seniority: z.enum(Seniority).optional(),
+  seniority: z
+    .preprocess(
+      (value) => (typeof value === 'string' ? value.toUpperCase() : value),
+      z.enum(Seniority),
+    )
+    .optional(),
   location: z.string().trim().min(1).max(200).optional(),
   skill: z.string().trim().min(1).max(100).optional(),
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type CreateJobPostingBody = z.infer<typeof createJobPostingSchema>;
