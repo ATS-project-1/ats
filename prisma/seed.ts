@@ -17,6 +17,7 @@ async function main() {
   console.log('🌱 Starting database seed...');
 
   // Clean existing data in reverse dependency order
+  await prisma.applicationStatusHistory.deleteMany(); // Added to resolve foreign key conflicts
   await prisma.interview.deleteMany();
   await prisma.matchResult.deleteMany();
   await prisma.application.deleteMany();
@@ -180,7 +181,7 @@ async function main() {
       candidateId: candidateProfile2.id,
       resumeId: resume2.id,
       resumeVersionId: resumeVersion2.id,
-      status: ApplicationStatus.UNDER_REVIEW,
+      status: ApplicationStatus.SCREENING,
     },
   });
 

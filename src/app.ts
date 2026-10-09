@@ -2,13 +2,21 @@ import express, { Request, Response } from 'express';
 import { config } from './common/config/env.config';
 import { connectPrisma } from './common/database/prisma';
 import { userRepository } from './user/user.repository';
+import userRoutes from './user/user.routes';
+import jobRoutes from './job/job.routes';
+import applicationRoutes from './application/application.routes';
 
 const app = express();
 app.use(express.json());
+app.use('/', userRoutes);
+
+app.use('/', jobRoutes);
+app.use('/', applicationRoutes);
 
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
 
 const startServer = async (): Promise<void> => {
   await connectPrisma();
@@ -26,5 +34,5 @@ const startServer = async (): Promise<void> => {
     console.log(`Server running on http://localhost:${config.PORT} in [${config.NODE_ENV}] mode`);
   });
 };
-
+export default app;
 startServer();

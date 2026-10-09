@@ -34,11 +34,10 @@ enum EmploymentType {
 
 enum ApplicationStatus {
   SUBMITTED
-  UNDER_REVIEW
-  SHORTLISTED
-  INTERVIEW_SCHEDULED
+  SCREENING
+  INTERVIEW
+  OFFER
   REJECTED
-  ACCEPTED
   WITHDRAWN
 }
 
@@ -49,19 +48,26 @@ enum InterviewStatus {
   RESCHEDULED
 }
 
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
 // ==========================================
 // MODELS
 // ==========================================
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
+  id           String     @id @default(uuid())
+  email        String     @unique
   passwordHash String
   firstName    String
   lastName     String
-  role         UserRole @default(CANDIDATE)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         UserRole   @default(CANDIDATE)
+  status       UserStatus @default(PENDING_VERIFICATION)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   // Role Profile Relations
   candidateProfile CandidateProfile?
@@ -148,13 +154,13 @@ model Resume {
 }
 
 model ResumeVersion {
-  id        String   @id @default(uuid())
-  resumeId  String
-  resume    Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  version   Int      @default(1)
-  fileUrl   String
+  id         String   @id @default(uuid())
+  resumeId   String
+  resume     Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  version    Int      @default(1)
+  fileUrl    String
   parsedData Json?
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   applications Application[]
   matchResults MatchResult[]
@@ -164,23 +170,38 @@ model ResumeVersion {
 }
 
 model Application {
-  id              String            @id @default(uuid())
+  id              String                    @id @default(uuid())
   jobId           String
-  job             JobPosting        @relation(fields: [jobId], references: [id], onDelete: Cascade)
   candidateId     String
-  candidate       CandidateProfile  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   resumeId        String
-  resume          Resume            @relation(fields: [resumeId], references: [id], onDelete: Cascade)
   resumeVersionId String
-  resumeVersion   ResumeVersion     @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
-  status          ApplicationStatus @default(SUBMITTED)
-  appliedAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  status          ApplicationStatus         @default(SUBMITTED)
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 
-  interviews  Interview[]
-  matchResult MatchResult?
+  job             JobPosting                @relation(fields: [jobId], references: [id])
+  candidate       CandidateProfile          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  resume          Resume                    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  resumeVersion   ResumeVersion             @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+  history         ApplicationStatusHistory[]
+  MatchResult     MatchResult?
+  Interview       Interview[]
 
+  @@unique([candidateId, jobId])
   @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String             @id @default(uuid())
+  applicationId String
+  fromStatus    ApplicationStatus?
+  toStatus      ApplicationStatus
+  changedById   String
+  createdAt     DateTime           @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@map("application_status_histories")
 }
 
 model MatchResult {
