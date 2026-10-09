@@ -38,6 +38,28 @@ export interface CreateApplicationInput {
 }
 
 export const applicationRepository = {
+  async createApplication(
+    input: CreateApplicationInput,
+    changedById: string,
+    db: DbClient = prisma,
+  ): Promise<ApplicationRecord> {
+    return inTransaction(db, async (tx) => {
+      const application = await tx.application.create({
+        data: { ...input, status: 'SUBMITTED' },
+        select: applicationSelect,
+      });
+      await tx.applicationStatusHistory.create({
+        data: {
+          applicationId: application.id,
+          fromStatus: null,
+          toStatus: 'SUBMITTED',
+          changedById,
+        },
+      });
+      return application;
+    });
+  },
+
   /** Creates the application and its first history row atomically. */
   createWithInitialHistory(
     input: CreateApplicationInput,
