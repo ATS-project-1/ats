@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { inTransaction, prisma, type DbClient } from '../common/db';
 import type { ApplicationStatus } from '../common/enums';
-import { ConflictError } from '../common/errors';
+import { ConflictError, NotFoundError } from '../common/errors';
 import { isUuid } from '../common/ids';
 import { toSkipTake, type PageParams, type Paginated } from '../common/pagination';
 import { withMappedErrors } from '../common/prisma-errors';
@@ -27,6 +27,21 @@ const statusHistorySelect = {
 } satisfies Prisma.ApplicationStatusHistorySelect;
 
 export type ApplicationRecord = Prisma.ApplicationGetPayload<{ select: typeof applicationSelect }>;
+const applicationWithJobSelect = {
+  ...applicationSelect,
+  jobPosting: {
+    select: {
+      id: true,
+      organizationId: true,
+      title: true,
+      status: true,
+    },
+  },
+} satisfies Prisma.ApplicationSelect;
+
+export type ApplicationWithJobRecord = Prisma.ApplicationGetPayload<{
+  select: typeof applicationWithJobSelect;
+}>;
 export type ApplicationStatusHistoryRecord = Prisma.ApplicationStatusHistoryGetPayload<{
   select: typeof statusHistorySelect;
 }>;
@@ -56,6 +71,14 @@ export const applicationRepository = {
           changedById,
         },
       });
+      await tx.applicationHistory.create({
+        data: {
+          applicationId: application.id,
+          previousStatus: null,
+          newStatus: 'SUBMITTED',
+          changedById,
+        },
+      });
       return application;
     });
   },
@@ -80,6 +103,16 @@ export const applicationRepository = {
             changedById,
           },
         });
+        if (changedById) {
+          await tx.applicationHistory.create({
+            data: {
+              applicationId: application.id,
+              previousStatus: null,
+              newStatus: 'SUBMITTED',
+              changedById,
+            },
+          });
+        }
         return application;
       }),
     );
@@ -89,6 +122,58 @@ export const applicationRepository = {
     if (!isUuid(id)) return null;
     return withMappedErrors(() =>
       db.application.findUnique({ where: { id }, select: applicationSelect }),
+    );
+  },
+
+  async findByIdWithJob(
+    id: string,
+    db: DbClient = prisma,
+  ): Promise<ApplicationWithJobRecord | null> {
+    if (!isUuid(id)) return null;
+    return withMappedErrors(() =>
+      db.application.findUnique({ where: { id }, select: applicationWithJobSelect }),
+    );
+  },
+
+  updateStatus(
+    id: string,
+    expectedStatus: ApplicationStatus,
+    status: ApplicationStatus,
+    changedById: string,
+    db: DbClient = prisma,
+  ): Promise<ApplicationRecord> {
+    return withMappedErrors(() =>
+      inTransaction(db, async (tx) => {
+        const { count } = await tx.application.updateMany({
+          where: { id, status: expectedStatus },
+          data: { status },
+        });
+        if (count === 0) {
+          const exists = await tx.application.findUnique({
+            where: { id },
+            select: { id: true },
+          });
+          if (!exists) throw new NotFoundError('Application not found', 'Not_Found');
+          throw new ConflictError('application status changed concurrently');
+        }
+        await tx.applicationStatusHistory.create({
+          data: {
+            applicationId: id,
+            fromStatus: expectedStatus,
+            toStatus: status,
+            changedById,
+          },
+        });
+        await tx.applicationHistory.create({
+          data: {
+            applicationId: id,
+            previousStatus: expectedStatus,
+            newStatus: status,
+            changedById,
+          },
+        });
+        return tx.application.findUniqueOrThrow({ where: { id }, select: applicationSelect });
+      }),
     );
   },
 
