@@ -25,3 +25,8 @@ jobPostingRouter.patch(
   jobPostingController.update,
 );
 jobPostingRouter.get('/', requireAuth, jobPostingController.getAll);
+jobPostingRouter.get(
+  '/:id/applications',
+  ...recruiterGuard,
+  jobPostingController.getJobApplications,
+);

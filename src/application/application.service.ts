@@ -14,6 +14,7 @@ import { resumeVersionRepository } from '../resume/resume-version.repository';
 import { candidateProfileRepository } from '../user/candidate-profile.repository';
 import { recruiterProfileRepository } from '../user/recruiter-profile.repository';
 import { userRepository } from '../user/user.repository';
+import { getRecruiterMembership } from '../user/organization/organization-access';
 import { applicationRepository } from './application.repository';
 
 const ALLOWED_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
@@ -128,5 +129,55 @@ export const applicationService = {
       newStatus as ApplicationStatus,
       recruiterId,
     );
+  },
+  async getApplicationsForJob(
+    jobId: string,
+    recruiterId: string,
+    filters: { page?: number; limit?: number; status?: string },
+  ) {
+    const membership = await getRecruiterMembership(recruiterId);
+    if (!membership) {
+      throw new ForbiddenError(
+        'You are not associated with an organization',
+        'Unauthorized_Action',
+      );
+    }
+
+    const job = await jobPostingRepository.findById(jobId);
+    if (!job) throw new NotFoundError('Job posting not found', 'Not_Found');
+
+    if (job.organizationId !== membership.organizationId) {
+      throw new ForbiddenError(
+        'You do not have access to applications for this job posting',
+        'Unauthorized_Action',
+      );
+    }
+
+    const page = Math.max(1, filters.page ?? 1);
+    const limit = Math.max(1, filters.limit ?? 10);
+    const skip = (page - 1) * limit;
+    const take = limit;
+
+    const statusFilter =
+      filters.status && Object.values(ApplicationStatus).includes(filters.status as ApplicationStatus)
+        ? { status: filters.status as ApplicationStatus }
+        : {};
+
+    const { total, data } = await applicationRepository.getApplicationsByJobId(
+      jobId,
+      statusFilter,
+      skip,
+      take,
+    );
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   },
 };

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { ValidationError } from '../common/errors';
 import { getAuth } from '../common/http/get-auth';
+import { applicationService } from '../application/application.service';
 import { getRecruiterMembership } from '../user/organization/organization-access';
 import type { JobPostingFilters } from './job-posting.repository';
 import { jobPostingService } from './job-posting.service';
@@ -61,5 +62,25 @@ export const jobPostingController = {
         totalPages: Math.ceil(result.total / limit),
       },
     });
+  },
+
+  async getJobApplications(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+    if (typeof id !== 'string') {
+      throw new ValidationError('Invalid job posting ID');
+    }
+
+    const { userId } = getAuth(req);
+    const page = req.query.page !== undefined ? Number(req.query.page) : undefined;
+    const limit = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+
+    const result = await applicationService.getApplicationsForJob(id, userId, {
+      page: page && !isNaN(page) ? page : undefined,
+      limit: limit && !isNaN(limit) ? limit : undefined,
+      status,
+    });
+
+    res.status(200).json(result);
   },
 };

@@ -251,6 +251,39 @@ export const applicationRepository = {
     );
   },
 
+  async getApplicationsByJobId(
+    jobId: string,
+    filters: { status?: ApplicationStatus },
+    skip: number,
+    take: number,
+    db: DbClient = prisma,
+  ): Promise<{ total: number; data: ApplicationRecord[] }> {
+    const where: Prisma.ApplicationWhereInput = {
+      jobPostingId: jobId,
+      ...(filters.status ? { status: filters.status } : {}),
+    };
+
+    return withMappedErrors(() =>
+      inTransaction(
+        db,
+        async (tx) => {
+          const [total, data] = await Promise.all([
+            tx.application.count({ where }),
+            tx.application.findMany({
+              where,
+              select: applicationSelect,
+              orderBy: [{ submittedAt: 'desc' }, { id: 'asc' }],
+              skip,
+              take,
+            }),
+          ]);
+          return { total, data };
+        },
+        { isolationLevel: 'RepeatableRead' },
+      ),
+    );
+  },
+
   getStatusHistory(
     applicationId: string,
     db: DbClient = prisma,
