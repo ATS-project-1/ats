@@ -30,7 +30,7 @@ export const resumeJsonService = {
    * Fetches the existing resume first and verifies that resume.candidateId === candidateId
    * before allowing the update, preventing Insecure Direct Object Reference (IDOR).
    */
-  async updateResume(candidateId: string, resumeId: string, content: Resume) {
+  async updateResume(candidateId: string, resumeId: string, content: Partial<Resume>) {
     // Fetch the target resume by candidateId to get the authoritative ownership record.
     const resume = await resumeJsonRepository.getResumeByCandidateId(candidateId);
     if (!resume) {

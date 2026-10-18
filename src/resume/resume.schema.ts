@@ -31,6 +31,16 @@ export const resumeSchema = z.object({
   sections: z.array(resumeSectionSchema),
 });
 
+export const resumeRecordSchema = z.strictObject({
+  title: z.string().trim().min(1),
+  content: z.json().optional(),
+});
+
+export const updateResumeRecordSchema = resumeRecordSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  'At least one field must be provided',
+);
+
 // ---------------------------------------------------------------------------
 // Inferred TypeScript types
 // ---------------------------------------------------------------------------
@@ -38,3 +48,5 @@ export const resumeSchema = z.object({
 export type ResumeEntry = z.infer<typeof resumeEntrySchema>;
 export type ResumeSection = z.infer<typeof resumeSectionSchema>;
 export type Resume = z.infer<typeof resumeSchema>;
+export type ResumeRecordInput = z.infer<typeof resumeRecordSchema>;
+export type UpdateResumeRecordInput = z.infer<typeof updateResumeRecordSchema>;

@@ -20,6 +20,13 @@ export async function cleanupTestData(): Promise<void> {
   });
   const organizationIds = organizations.map((o) => o.id);
 
+  await prisma.applicationHistory.deleteMany({
+    where: {
+      application: {
+        candidate: { user: { email: testEmail } },
+      },
+    },
+  });
   await prisma.user.deleteMany({ where: { email: testEmail, role: 'CANDIDATE' } });
   await prisma.jobPosting.deleteMany({ where: { organizationId: { in: organizationIds } } });
   await prisma.user.deleteMany({ where: { email: testEmail } });

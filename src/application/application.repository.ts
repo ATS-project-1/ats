@@ -16,6 +16,17 @@ const applicationSelect = {
   updatedAt: true,
 } satisfies Prisma.ApplicationSelect;
 
+const applicationWithResumeSelect = {
+  ...applicationSelect,
+  resumeVersion: {
+    select: {
+      id: true,
+      versionNumber: true,
+      content: true,
+    },
+  },
+} satisfies Prisma.ApplicationSelect;
+
 const statusHistorySelect = {
   id: true,
   applicationId: true,
@@ -257,7 +268,10 @@ export const applicationRepository = {
     skip: number,
     take: number,
     db: DbClient = prisma,
-  ): Promise<{ total: number; data: ApplicationRecord[] }> {
+  ): Promise<{
+    total: number;
+    data: Prisma.ApplicationGetPayload<{ select: typeof applicationWithResumeSelect }>[];
+  }> {
     const where: Prisma.ApplicationWhereInput = {
       jobPostingId: jobId,
       ...(filters.status ? { status: filters.status } : {}),
@@ -271,7 +285,7 @@ export const applicationRepository = {
             tx.application.count({ where }),
             tx.application.findMany({
               where,
-              select: applicationSelect,
+              select: applicationWithResumeSelect,
               orderBy: [{ submittedAt: 'desc' }, { id: 'asc' }],
               skip,
               take,
