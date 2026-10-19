@@ -169,9 +169,14 @@ export const applicationService = {
       skip,
       take,
     );
+    const currentData = data.map((application) => {
+      const { matchResult, ...applicationData } = application;
+      if (matchResult && matchResult.computedAt < job.updatedAt) return applicationData;
+      return application;
+    });
 
     return {
-      data,
+      data: currentData,
       meta: {
         total,
         page,

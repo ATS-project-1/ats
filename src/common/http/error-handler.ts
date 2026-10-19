@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
+import multer from 'multer';
 import { ZodError } from 'zod';
 import { AppError } from '../errors';
 
@@ -45,6 +46,22 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, next) => {
         message: issue.message,
       })),
     });
+    return;
+  }
+
+  if (err instanceof multer.MulterError) {
+    const isFileTooLarge = err.code === 'LIMIT_FILE_SIZE';
+    send(isFileTooLarge ? 413 : 400, {
+      code: isFileTooLarge ? 'FILE_TOO_LARGE' : 'INVALID_FILE_UPLOAD',
+      message: isFileTooLarge
+        ? 'Uploaded file exceeds the 5 MB size limit'
+        : 'Invalid multipart file upload',
+    });
+    return;
+  }
+
+  if (err instanceof Error && err.message === 'Unsupported_Media_Type') {
+    res.status(415).json({ error: 'Only PDF and DOCX files are allowed.' });
     return;
   }
 
