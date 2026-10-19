@@ -25,6 +25,7 @@ const schema = z.object({
   JWT_SECRET: z
     .string({ error: 'is required' })
     .min(32, { message: 'must be at least 32 characters' }),
+  OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   JWT_EXPIRES_IN: z.preprocess(
     emptyToUndefined,
     z
@@ -59,6 +60,7 @@ export const config = Object.freeze({
   nodeEnv: env.NODE_ENV,
   port: env.PORT,
   databaseUrl: env.DATABASE_URL,
+  openaiApiKey: env.OPENAI_API_KEY,
   jwt: Object.freeze({
     secret: env.JWT_SECRET,
     expiresIn: env.JWT_EXPIRES_IN,

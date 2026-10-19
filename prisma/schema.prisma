@@ -70,11 +70,11 @@ model User {
   role         Role
   status       UserStatus @default(PENDING_VERIFICATION)
 
-  candidateProfile CandidateProfile?
-  recruiterProfile RecruiterProfile?
-  statusChanges    ApplicationStatusHistory[]
+  candidateProfile          CandidateProfile?
+  recruiterProfile          RecruiterProfile?
+  statusChanges             ApplicationStatusHistory[]
   applicationHistoryChanges ApplicationHistory[]
-  resumeJson       ResumeJson?
+  resumeJson                ResumeJson?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -159,7 +159,7 @@ model JobPosting {
   closedAt        DateTime?
 
   applications Application[]
-  matchResults MatchResult[]
+  matchResults ResumeJobMatchResult[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -202,7 +202,7 @@ model ResumeVersion {
   rawText       String?
 
   applications Application[]
-  matchResults MatchResult[]
+  matchResults ResumeJobMatchResult[]
 
   createdAt DateTime @default(now())
 
@@ -227,6 +227,7 @@ model Application {
   statusHistory       ApplicationHistory[]
   legacyStatusHistory ApplicationStatusHistory[]
   interviews          Interview[]
+  matchResult         MatchResult?
 
   submittedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -252,14 +253,14 @@ model ApplicationStatusHistory {
 }
 
 model ApplicationHistory {
-  id             String            @id @default(uuid()) @db.Uuid
-  applicationId  String            @db.Uuid
-  application    Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  id             String             @id @default(uuid()) @db.Uuid
+  applicationId  String             @db.Uuid
+  application    Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   previousStatus ApplicationStatus?
   newStatus      ApplicationStatus
-  changedById    String            @db.Uuid
-  changedBy      User              @relation(fields: [changedById], references: [id], onDelete: Restrict)
-  createdAt      DateTime          @default(now())
+  changedById    String             @db.Uuid
+  changedBy      User               @relation(fields: [changedById], references: [id], onDelete: Restrict)
+  createdAt      DateTime           @default(now())
 
   @@index([applicationId, createdAt])
   @@map("application_histories")
@@ -270,6 +271,17 @@ model ApplicationHistory {
 // ---------------------------------------------------------------------------
 
 model MatchResult {
+  id            String      @id @default(uuid()) @db.Uuid
+  applicationId String      @unique @db.Uuid
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  score         Float
+  breakdown     Json
+  computedAt    DateTime    @default(now())
+
+  @@map("match_results")
+}
+
+model ResumeJobMatchResult {
   id                  String        @id @default(uuid()) @db.Uuid
   resumeVersionId     String        @db.Uuid
   resumeVersion       ResumeVersion @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
@@ -283,7 +295,7 @@ model MatchResult {
 
   @@unique([resumeVersionId, jobPostingId, scorer])
   @@index([jobPostingId, score])
-  @@map("match_results")
+  @@map("resume_job_match_results")
 }
 
 // ---------------------------------------------------------------------------
@@ -329,9 +341,9 @@ model OutboxEvent {
 // ---------------------------------------------------------------------------
 
 model ResumeJson {
-  id          String   @id @default(uuid()) @db.Uuid
-  candidateId String   @unique @db.Uuid
-  candidate   User     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  id          String @id @default(uuid()) @db.Uuid
+  candidateId String @unique @db.Uuid
+  candidate   User   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   content     Json
 
   createdAt DateTime @default(now())

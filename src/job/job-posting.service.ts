@@ -11,6 +11,7 @@ import {
   type JobPostingFilters,
   type UpdateJobPostingInput,
 } from './job-posting.repository';
+import { matchingService } from '../matching/matching.service';
 
 export const jobPostingService = {
   async create(
@@ -58,7 +59,19 @@ export const jobPostingService = {
       data.closedAt = null;
     }
 
-    return jobPostingRepository.update(jobPostingId, data);
+    const updatedJob = await jobPostingRepository.update(jobPostingId, data);
+    const requiredSkillsChanged =
+      input.requiredSkills !== undefined &&
+      (input.requiredSkills.length !== job.requiredSkills.length ||
+        input.requiredSkills.some((skill, index) => skill !== job.requiredSkills[index]));
+
+    if (requiredSkillsChanged) {
+      void matchingService.recomputeScoresForJob(jobPostingId).catch((error: unknown) => {
+        console.error(`Failed to recompute match scores for job ${jobPostingId}:`, error);
+      });
+    }
+
+    return updatedJob;
   },
 
   async getJobPostings(

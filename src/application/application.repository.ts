@@ -25,6 +25,15 @@ const applicationWithResumeSelect = {
       content: true,
     },
   },
+  matchResult: {
+    select: {
+      id: true,
+      applicationId: true,
+      score: true,
+      breakdown: true,
+      computedAt: true,
+    },
+  },
 } satisfies Prisma.ApplicationSelect;
 
 const statusHistorySelect = {
@@ -38,6 +47,24 @@ const statusHistorySelect = {
 } satisfies Prisma.ApplicationStatusHistorySelect;
 
 export type ApplicationRecord = Prisma.ApplicationGetPayload<{ select: typeof applicationSelect }>;
+const applicationForScoringSelect = {
+  ...applicationSelect,
+  resumeVersion: { select: { content: true } },
+  jobPosting: {
+    select: {
+      id: true,
+      requiredSkills: true,
+      title: true,
+      description: true,
+      updatedAt: true,
+    },
+  },
+} satisfies Prisma.ApplicationSelect;
+
+export type ApplicationForScoringRecord = Prisma.ApplicationGetPayload<{
+  select: typeof applicationForScoringSelect;
+}>;
+
 const applicationWithJobSelect = {
   ...applicationSelect,
   jobPosting: {
@@ -134,6 +161,27 @@ export const applicationRepository = {
     return withMappedErrors(() =>
       db.application.findUnique({ where: { id }, select: applicationSelect }),
     );
+  },
+
+  async findForScoring(
+    id: string,
+    db: DbClient = prisma,
+  ): Promise<ApplicationForScoringRecord | null> {
+    if (!isUuid(id)) return null;
+    return withMappedErrors(() =>
+      db.application.findUnique({ where: { id }, select: applicationForScoringSelect }),
+    );
+  },
+
+  async findIdsForJobPosting(jobPostingId: string, db: DbClient = prisma): Promise<string[]> {
+    if (!isUuid(jobPostingId)) return [];
+    return withMappedErrors(async () => {
+      const applications = await db.application.findMany({
+        where: { jobPostingId },
+        select: { id: true },
+      });
+      return applications.map(({ id }) => id);
+    });
   },
 
   async findByIdWithJob(

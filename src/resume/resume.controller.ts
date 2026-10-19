@@ -2,14 +2,12 @@ import type { Request, Response } from 'express';
 import { ValidationError } from '../common/errors';
 import { getAuth } from '../common/http/get-auth';
 import { resumeJsonService } from './resume-json.service';
-import {
-  resumeSchema,
-  resumeRecordSchema,
-  updateResumeRecordSchema,
-} from './resume.schema';
+import { resumeSchema, resumeRecordSchema, updateResumeRecordSchema } from './resume.schema';
 import { resumeService } from './resume.service';
 import { pdfService } from './pdf.service';
 import { z } from 'zod';
+import { resumeParserService, UnsupportedFileTypeError } from './resume-parser.service';
+import { resumeAiService } from './resume-ai.service';
 
 const downloadPdfSchema = z.strictObject({
   templateId: z.enum(['classic', 'modern']).default('classic'),
@@ -60,7 +58,10 @@ export const resumeController = {
   async downloadPdf(req: Request, res: Response): Promise<void> {
     const versionId = req.params.versionId;
     if (!versionId || Array.isArray(versionId)) {
-      throw new ValidationError('A single resume version ID is required', 'INVALID_RESUME_VERSION_ID');
+      throw new ValidationError(
+        'A single resume version ID is required',
+        'INVALID_RESUME_VERSION_ID',
+      );
     }
     const { templateId } = downloadPdfSchema.parse(req.body ?? {});
     const version = await resumeService.getOwnedVersion(versionId, getAuth(req).userId);
@@ -70,5 +71,27 @@ export const resumeController = {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="resume.pdf"');
     res.status(200).send(pdfBuffer);
+  },
+
+  async uploadResume(req: Request, res: Response): Promise<void> {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file provided.' });
+      return;
+    }
+
+    try {
+      const rawText = await resumeParserService.extractTextFromFile(req.file);
+      const resume = await resumeAiService.parseRawTextToSchema(rawText);
+      res.status(200).json({ resume });
+    } catch (error) {
+      if (
+        error instanceof UnsupportedFileTypeError ||
+        (error instanceof ValidationError && error.code === 'FILE_PARSE_ERROR')
+      ) {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+      throw error;
+    }
   },
 };

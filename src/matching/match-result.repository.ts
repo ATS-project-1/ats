@@ -13,9 +13,11 @@ const matchResultSelect = {
   breakdown: true,
   jobPostingUpdatedAt: true,
   computedAt: true,
-} satisfies Prisma.MatchResultSelect;
+} satisfies Prisma.ResumeJobMatchResultSelect;
 
-export type MatchResultRecord = Prisma.MatchResultGetPayload<{ select: typeof matchResultSelect }>;
+export type MatchResultRecord = Prisma.ResumeJobMatchResultGetPayload<{
+  select: typeof matchResultSelect;
+}>;
 
 export interface UpsertMatchResultInput {
   resumeVersionId: string;
@@ -28,9 +30,16 @@ export interface UpsertMatchResultInput {
 
 export const matchResultRepository = {
   upsert(input: UpsertMatchResultInput, db: DbClient = prisma): Promise<MatchResultRecord> {
-    const { resumeVersionId, jobPostingId, scorer, score, breakdown, jobPostingUpdatedAt } = input;
+    const {
+      resumeVersionId,
+      jobPostingId,
+      scorer,
+      score,
+      breakdown,
+      jobPostingUpdatedAt,
+    } = input;
     return withMappedErrors(() =>
-      db.matchResult.upsert({
+      db.resumeJobMatchResult.upsert({
         where: { resumeVersionId_jobPostingId_scorer: { resumeVersionId, jobPostingId, scorer } },
         create: {
           resumeVersionId,
@@ -55,7 +64,7 @@ export const matchResultRepository = {
   ): Promise<MatchResultRecord | null> {
     if (!isUuid(resumeVersionId) || !isUuid(jobPostingId)) return null;
     return withMappedErrors(() =>
-      db.matchResult.findUnique({
+      db.resumeJobMatchResult.findUnique({
         where: { resumeVersionId_jobPostingId_scorer: { resumeVersionId, jobPostingId, scorer } },
         select: matchResultSelect,
       }),
@@ -68,14 +77,14 @@ export const matchResultRepository = {
     db: DbClient = prisma,
   ): Promise<Paginated<MatchResultRecord>> {
     const { skip, take, page, pageSize } = toSkipTake(pageParams);
-    const where: Prisma.MatchResultWhereInput = { jobPostingId };
+    const where: Prisma.ResumeJobMatchResultWhereInput = { jobPostingId };
 
     return withMappedErrors(() =>
       inTransaction(
         db,
         async (tx) => {
-          const total = await tx.matchResult.count({ where });
-          const items = await tx.matchResult.findMany({
+          const total = await tx.resumeJobMatchResult.count({ where });
+          const items = await tx.resumeJobMatchResult.findMany({
             where,
             select: matchResultSelect,
             orderBy: [{ score: 'desc' }, { id: 'asc' }],
