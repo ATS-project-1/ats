@@ -74,6 +74,7 @@ model User {
   recruiterProfile RecruiterProfile?
   statusChanges    ApplicationStatusHistory[]
   applicationHistoryChanges ApplicationHistory[]
+  resumeJson       ResumeJson?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -321,4 +322,20 @@ model OutboxEvent {
 
   @@index([publishedAt, createdAt])
   @@map("outbox_events")
+}
+
+// ---------------------------------------------------------------------------
+// JSON-schema resume (one per candidate, validated at runtime with Zod)
+// ---------------------------------------------------------------------------
+
+model ResumeJson {
+  id          String   @id @default(uuid()) @db.Uuid
+  candidateId String   @unique @db.Uuid
+  candidate   User     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  content     Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("resume_json")
 }

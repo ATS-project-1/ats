@@ -3,6 +3,8 @@ import { prisma, type DbClient } from '../common/db';
 import type { ResumeSource } from '../common/enums';
 import { isUuid } from '../common/ids';
 import { withMappedErrors } from '../common/prisma-errors';
+import { resumeVersionRepository } from './resume-version.repository';
+import type { ResumeVersionRecord } from './resume-version.repository';
 
 const resumeSelect = {
   id: true,
@@ -65,5 +67,23 @@ export const resumeRepository = {
 
   updateContent(id: string, data: UpdateResumeInput, db: DbClient = prisma): Promise<ResumeRecord> {
     return withMappedErrors(() => db.resume.update({ where: { id }, data, select: resumeSelect }));
+  },
+
+  createResumeRecord(
+    candidateId: string,
+    title: string,
+    content: Prisma.InputJsonValue,
+    db: DbClient = prisma,
+  ): Promise<ResumeRecord> {
+    return withMappedErrors(() =>
+      db.resume.create({
+        data: { candidateId, title, content },
+        select: resumeSelect,
+      }),
+    );
+  },
+
+  createVersion(resumeId: string, db: DbClient = prisma): Promise<ResumeVersionRecord> {
+    return resumeVersionRepository.createSnapshot(resumeId, {}, db);
   },
 };

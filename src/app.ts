@@ -7,6 +7,7 @@ import { organizationRouter } from './user/organization/organization.routes';
 import { candidateProfileRouter } from './user/profile/candidate-profile.routes';
 import { recruiterProfileRouter } from './user/profile/recruiter-profile.routes';
 import { authRouter } from './user/auth/auth.routes';
+import { resumeJsonRouter } from './resume/resume-json.routes';
 
 export function createApp() {
   const app = express();
@@ -23,6 +24,7 @@ export function createApp() {
   app.use('/organizations', organizationRouter);
   app.use('/job-postings', jobPostingRouter);
   app.use('/applications', applicationRouter);
+  app.use('/resumes', resumeJsonRouter);
 
   app.use(notFound);
   app.use(errorHandler);
